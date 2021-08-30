@@ -1,0 +1,702 @@
+---
+title: "ML_Assignment_#5"
+author: "Kevin Muñoz"
+output: html_document
+---
+
+###SECTION 2 (GUSTO STUDY): QUESTION 1: Logistic Regression Model
+
+###Logistic Regression Model:
+
+
+```{r, echo=TRUE}
+
+
+#Clear global environment 
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#Ensures all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+###Logistic Regression Framework with all features to predict 30-day mortality in a logistic regression framework.
+
+
+#Create labels and create a logistic regression training model  
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+fitControl <- trainControl(method = "cv", number = 5)
+glm.model <- train(DAY30 ~ . ,
+                   data = train_sample_groups_2_4_5,
+                   method = "glm",
+                   family = "binomial",
+                   trControl = fitControl)
+
+
+print(glm.model)
+
+
+#Apply to test dataset by creating a prediction object.
+preds <- predict(object = glm.model, test_west_group, type = "prob")
+test_west_group$predicted_prob_DAY30 <- preds$Yes
+glm_perf <- roc(response = test_west_group$DAY30,
+                predictor = test_west_group$predicted_prob_DAY30)
+
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(glm_perf))
+print(pROC::ci.auc(glm_perf))
+
+```
+
+
+###SECTION 2 (GUSTO STUDY): QUESTION 2: Ridge Regression
+
+###Ridge Regression:
+
+```{r, echo=TRUE}
+
+
+
+
+#Clear environment.
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#This will help with question 3 to ensure all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+#Logistic Regression Framework with all features to predict 30-day mortality. Also, with regularization on the L2 term. 
+#Utilization of 5 fold cross validation to build the parameters for ridge regression model.
+
+
+#Load package.
+library(glmnetUtils)
+
+#Create labels and ridge regression model. 
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+
+m_ridge <- glmnet(DAY30 ~ . ,
+                  data = train_sample_groups_2_4_5,
+                  family = "binomial",
+                  alpha = 0)
+
+#Weights converge by plotting.
+plot(m_ridge, xvar = "lambda")
+
+
+#For a good range lambda, we need to use CV on glmnet first then fine tune it later with the package caret. 
+
+
+m_ridge_cv <- cv.glmnet(DAY30 ~ . ,
+                        data = train_sample_groups_2_4_5,
+                        family = "binomial",
+                        alpha = 0,
+                        nfolds = 5)
+
+plot(m_ridge_cv)
+
+
+#Minimum lambda.
+
+m_ridge_cv$lambda.min
+
+
+#Minimum lambda plus one SD.
+
+m_ridge_cv$lambda.1se
+
+#Create a grid for finding the perfect lambda and alpha. Also, everything between.
+
+min_lambda <- min(m_ridge_cv$lambda.min, m_ridge_cv$lambda.1se)
+max_lambda <- max(m_ridge_cv$lambda.min, m_ridge_cv$lambda.1se)
+lambda_grid <- seq(min_lambda, max_lambda, by = 0.001)
+
+
+alpha_grid <- c(0)
+objGrid <- expand.grid(alpha = alpha_grid,
+                       lambda = lambda_grid)
+
+
+#Regularization in R: 
+#Create labels and a logistic regression training model using cross-validation.  
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+fitControl <- trainControl(method = "cv", number = 5)
+reg.model <- train(DAY30 ~ . ,
+                   data = train_sample_groups_2_4_5,
+                   method = "glmnet",
+                   tuneGrid = objGrid,
+                   trControl = fitControl)
+
+
+
+print(reg.model)
+
+
+#Apply to test dataset by creating a prediction object. 
+preds <- predict(object = reg.model, test_west_group, type = "prob")
+test_west_group$predicted_prob_DAY30 <- preds$Yes
+reg_perf <- roc(response = test_west_group$DAY30,
+                predictor = test_west_group$predicted_prob_DAY30)
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(reg_perf))
+print(pROC::ci.auc(reg_perf))
+
+```
+
+
+
+
+###SECTION 2 (GUSTO STUDY): QUESTION 3: ANN Model
+
+###ANN Model:
+
+
+```{r, echo=TRUE}
+
+
+
+#Clear environment.
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#This will help with question 3 to ensure all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+
+#Balancing classes using SMOTE in training dataset. 
+
+#train_sample_groups_2_4_5 <- SMOTE(DAY30 ~ ., data = train_sample_groups_2_4_5,
+                 #perc.over = 200, perc.under = 100, k = 1)
+
+
+
+#Normalization and standardization of continuous variables. 
+#Use training dataset and subtract mean to center, divide by standard deviation
+preProcValues <- preProcess(train_sample_groups_2_4_5, 
+                            method = c("center", "scale"))
+
+
+trainTransformed <- predict(preProcValues, train_sample_groups_2_4_5)
+testTransformed <- predict(preProcValues, test_west_group)
+
+
+#set seed for reproducibility. 
+set.seed(456)
+
+#Create labels and create a ANN model.
+levels(trainTransformed$DAY30) <- c("No", "Yes")
+
+#Choosing a grid size for the hidden layer and the decay. 
+
+objGrid <- expand.grid(size = seq(2, 50, by =1), decay = c(0.001))
+
+fitControl <- trainControl(method = "cv", number = 5, classProbs = TRUE)
+ann.model <- train(DAY30~ . ,
+                   data = trainTransformed,
+                   method = "nnet",
+                   metric = "AUC",
+                   trControl = fitControl,
+                   tuneGrid = objGrid,
+                   trace = FALSE)
+
+print(ann.model)
+
+
+#Apply to test dataset by creating a prediction object.
+preds <- predict(object = ann.model, testTransformed, type = "prob")
+testTransformed$predicted_prob_DAY30 <- preds$Yes
+ann_perf <- pROC::roc(response = testTransformed$DAY30,
+                      predictor = testTransformed$predicted_prob_DAY30)
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(ann_perf))
+print(pROC::ci.auc(ann_perf))
+
+
+```
+
+
+###SECTION 2 (GUSTO STUDY): QUESTION 4: Random Forest Model
+
+### Random Forest Model:
+
+
+```{r, echo=TRUE}
+
+#Clear environment.
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#This will help with question 3 to ensure all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+
+#Set parameters:
+#Take the square root of number of features and create grid by setting grid to be +/- 2.  
+
+p_mtry <- round(sqrt(ncol(train_sample_groups_2_4_5)))
+mtry_grid <- seq(p_mtry -2, p_mtry +2, by = 1)
+objGrid <- expand.grid(.mtry = mtry_grid)
+
+
+
+#Create labels, cross 5-fold validation, and create a random forest training model.
+#Can change the number of trees to compare the performance output of all the models like 500 or 1000. 
+
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+fitControl <- trainControl(method = "cv", number = 5)
+
+
+
+rf.model <- train(DAY30 ~ . ,
+                  data = train_sample_groups_2_4_5,
+                  method = "rf",
+                  tuneGrid = objGrid,
+                  ntree = 1000, 
+                  trControl = fitControl,
+                  importance= TRUE)
+
+
+library(ggplot2)
+
+#Use varimp function from caret package to tell across all variables for a single model which are most important. 
+feat_imp <- caret::varImp(rf.model, scale=F)
+
+feat_imp
+
+#Use ggplot to plot variable importance graph. 
+p <- ggplot(feat_imp) + ggtitle("Variable Importance Plot")
+
+p <- p + labs(y = "Importance", x = "Variable Features") 
+
+p
+
+
+#Apply to test dataset by creating a prediction object.
+preds <- predict(object = rf.model, test_west_group, type = "prob")
+test_west_group$predicted_prob_DAY30 <- preds$Yes
+rf_perf <- roc(response = test_west_group$DAY30,
+               predictor = test_west_group$predicted_prob_DAY30)
+
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(rf_perf))
+print(pROC::ci.auc(rf_perf))
+
+
+
+```
+
+
+
+
+###SECTION 2 (GUSTO STUDY): QUESTION 5: Gradient Boosting Model
+
+### Gradient Boosting Model:
+
+
+
+```{r, echo=TRUE}
+
+#Clear environment.
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#This will help with question 3 to ensure all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+#set seed for reproducibility. 
+set.seed(456)
+p_n.trees <- c(500, 1000) #Number of trees.
+p_lr <- c(0.01, 0.05) #Parameter that needs to be tuned is the learning rate or shrinkage.
+p_interaction_depth <- c(2, 3, 5) #Max number of splits per tree (want to create a small tree). 
+p_min_obs <- c(10) #Minimum observations for tree to stop growing.
+
+
+#Created ObjGrid with four variables and different observations.
+objGrid <- expand.grid(interaction.depth = p_interaction_depth,
+                       n.trees = p_n.trees,
+                       shrinkage = p_lr,
+                       n.minobsinnode = p_min_obs)
+
+
+
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+fitControl <- trainControl(method = "cv", number = 5)
+
+
+#Create labels, cross 5-fold validation, and create a gbm training model.
+#Another way to the output of gbm because gbm doesn't suppress the output.
+temp <- capture.output(gbm.model <- train(DAY30 ~ . ,
+                                          data = train_sample_groups_2_4_5,
+                                          method = "gbm",
+                                          tuneGrid = objGrid,
+                                          trControl = fitControl))
+
+
+print(gbm.model)
+
+
+
+#Apply to test dataset by creating a prediction object.
+preds <- predict(object = gbm.model, test_west_group, type = "prob")
+test_west_group$predicted_prob_DAY30 <- preds$Yes
+gbm_perf <- roc(response = test_west_group$DAY30,
+               predictor = test_west_group$predicted_prob_DAY30)
+
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(gbm_perf))
+print(pROC::ci.auc(gbm_perf))
+
+
+
+```
+
+
+
+
+###SECTION 2 (GUSTO STUDY): QUESTION 6: SVM Model
+
+### Support Vector Model:
+
+
+```{r, echo=TRUE}
+
+
+
+
+#Clear environment.
+rm(list=ls())
+
+
+#Load packages.
+library(plyr)
+library(dplyr)
+library(pROC)
+library(caret)
+
+
+#Read csv file.
+d.in <- read.csv("~/Desktop/gusto_data.csv")
+
+
+
+#Change variables from continuous to categorical variables that properly represent the data. 
+#This will help with question 3 to ensure all variables are properly represented as either numeric or categorical.
+
+d.in$GROUP<- as.factor(d.in$GROUP)
+d.in$SEX <- as.factor(d.in$SEX)
+d.in$A65 <- as.factor(d.in$A65)
+d.in$KILLIP <- as.factor(d.in$KILLIP)
+d.in$SHO <- as.factor(d.in$SHO)
+d.in$DIA <- as.factor(d.in$DIA)
+d.in$HYP <- as.factor(d.in$HYP)
+d.in$HRT <- as.factor(d.in$HRT)
+d.in$ANT <- as.factor(d.in$ANT)
+d.in$SMK <- as.factor(d.in$SMK)
+d.in$HTN <- as.factor(d.in$HTN)
+d.in$LIP <- as.factor(d.in$LIP)
+d.in$PAN <- as.factor(d.in$PAN)
+d.in$FAM <- as.factor(d.in$FAM)
+d.in$ST4 <- as.factor(d.in$ST4)
+d.in$TTR <- as.factor(d.in$TTR)
+d.in$HIG <- as.factor(d.in$HIG)
+d.in$PMI <- as.factor(d.in$PMI)
+d.in$DAY30 <- as.factor(d.in$DAY30)
+
+
+#Split the dataset into training (groups = sample2 or sample4 or sample5) and testing (group = west). 
+
+
+train_sample_groups_2_4_5 <- filter(d.in, GROUP != "west")
+
+summary(train_sample_groups_2_4_5)
+
+test_west_group <- filter(d.in, GROUP == "west")
+
+summary(test_west_group)
+
+
+
+set.seed(892)
+
+#Setup for cross validation.
+
+#Tune for the cost parameter c. 
+objGrid <- expand.grid(C = c(0.01, 0.1, 1, 10, 100, 1000))
+
+levels(train_sample_groups_2_4_5$DAY30) <- c("No", "Yes")
+fitControl <- trainControl(method = "cv", number = 5, classProbs = TRUE)
+
+m1.svm <- train(DAY30 ~ . ,
+                  data = train_sample_groups_2_4_5,
+                  method = "svmLinear",
+                  tuneGrid = objGrid,
+                  trControl = fitControl)
+
+m1.svm
+
+
+#Apply to test dataset by creating a prediction object.
+preds <- predict(object = m1.svm, test_west_group, type = "prob")
+test_west_group$predicted_prob_DAY30 <- preds$Yes
+svm_perf <- roc(response = test_west_group$DAY30,
+                predictor = test_west_group$predicted_prob_DAY30)
+
+
+
+#Get performance: calculate AUC and their confidence intervals.
+
+print(pROC::auc(svm_perf))
+print(pROC::ci.auc(svm_perf))
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
