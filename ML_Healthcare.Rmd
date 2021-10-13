@@ -4,7 +4,7 @@ author: "Kevin Muñoz"
 output: html_document
 ---
 
-###SECTION 2 (GUSTO STUDY): QUESTION 1: Logistic Regression Model
+###SECTION 2 (GUSTO STUDY): Part 1: Logistic Regression Model
 
 ###Logistic Regression Model:
 
@@ -96,7 +96,7 @@ print(pROC::ci.auc(glm_perf))
 ```
 
 
-###SECTION 2 (GUSTO STUDY): QUESTION 2: Ridge Regression
+###SECTION 2 (GUSTO STUDY): Part 2: Ridge Regression
 
 ###Ridge Regression:
 
@@ -241,7 +241,7 @@ print(pROC::ci.auc(reg_perf))
 
 
 
-###SECTION 2 (GUSTO STUDY): QUESTION 3: ANN Model
+###SECTION 2 (GUSTO STUDY): Part 3: ANN Model
 
 ###ANN Model:
 
@@ -358,7 +358,7 @@ print(pROC::ci.auc(ann_perf))
 ```
 
 
-###SECTION 2 (GUSTO STUDY): QUESTION 4: Random Forest Model
+###SECTION 2 (GUSTO STUDY): Part 4: Random Forest Model
 
 ### Random Forest Model:
 
@@ -479,7 +479,7 @@ print(pROC::ci.auc(rf_perf))
 
 
 
-###SECTION 2 (GUSTO STUDY): QUESTION 5: Gradient Boosting Model
+###SECTION 2 (GUSTO STUDY): Part 5: Gradient Boosting Model
 
 ### Gradient Boosting Model:
 
@@ -592,7 +592,7 @@ print(pROC::ci.auc(gbm_perf))
 
 
 
-###SECTION 2 (GUSTO STUDY): QUESTION 6: SVM Model
+###SECTION 2 (GUSTO STUDY): Part 6: SVM Model
 
 ### Support Vector Model:
 
